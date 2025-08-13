@@ -1,37 +1,54 @@
 import { useState } from "react";
 import "./App.css";
 
+// Type for a conversation message
+interface Message {
+  role: "user" | "model";
+  text: string;
+}
+
+// Extend window for SpeechRecognition
+declare global {
+  interface Window {
+    webkitSpeechRecognition?: typeof SpeechRecognition;
+    SpeechRecognition?: typeof SpeechRecognition;
+  }
+}
+
 function App() {
-  const [conversation, setConversation] = useState([]);
-  const [userText, setUserText] = useState("");
-  const [aiText, setAiText] = useState("");
-  const [questionCount, setQuestionCount] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isInterviewActive, setIsInterviewActive] = useState(false);
+  const [conversation, setConversation] = useState<Message[]>([]);
+  const [userText, setUserText] = useState<string>("");
+  const [aiText, setAiText] = useState<string>("");
+  const [questionCount, setQuestionCount] = useState<number>(0);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [isInterviewActive, setIsInterviewActive] = useState<boolean>(false);
 
   const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-  let recognition;
-  if ("webkitSpeechRecognition" in window) {
-    recognition = new window.webkitSpeechRecognition();
-  } else if ("SpeechRecognition" in window) {
-    recognition = new window.SpeechRecognition();
-  }
+  let recognition: SpeechRecognition | undefined;
 
-  if (recognition) {
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
+  if (typeof window !== "undefined") {
+    if ("webkitSpeechRecognition" in window && window.webkitSpeechRecognition) {
+      recognition = new window.webkitSpeechRecognition();
+    } else if ("SpeechRecognition" in window && window.SpeechRecognition) {
+      recognition = new window.SpeechRecognition();
+    }
 
-    recognition.onresult = (event) => {
-      const text = event.results[0][0].transcript;
-      setUserText(text);
-      stopListening(); // stop mic before AI talks
-      sendToGemini(text);
-    };
+    if (recognition) {
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
 
-    recognition.onend = () => {
-      // No auto restart — AI will decide when to listen again
-    };
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        const text = event.results[0][0].transcript;
+        setUserText(text);
+        stopListening();
+        sendToGemini(text);
+      };
+
+      recognition.onend = () => {
+        // No auto restart — AI will decide when to listen again
+      };
+    }
   }
 
   const startListening = () => {
@@ -39,11 +56,11 @@ function App() {
   };
 
   const stopListening = () => {
-    if (recognition) recognition.stop();
+    recognition?.stop();
   };
 
-  function speak(text) {
-    if (!isInterviewActive) return; // Don't speak if stopped
+  function speak(text: string) {
+    if (!isInterviewActive) return;
     stopListening();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "en-US";
@@ -52,17 +69,17 @@ function App() {
       if (isInterviewActive && questionCount < 5) {
         setTimeout(() => {
           startListening();
-        }, 800); // short pause
+        }, 800);
       }
     };
     speechSynthesis.speak(utterance);
   }
 
-  async function sendToGemini(message) {
+  async function sendToGemini(message: string) {
     if (isProcessing || !isInterviewActive) return;
     setIsProcessing(true);
 
-    const updatedConversation = [
+    const updatedConversation: Message[] = [
       ...conversation,
       { role: "user", text: message },
     ];
@@ -94,7 +111,7 @@ You are an AI interviewer.
       );
 
       const data = await res.json();
-      const aiReply =
+      const aiReply: string =
         data?.candidates?.[0]?.content?.parts?.[0]?.text ||
         "Sorry, I couldn't understand.";
 
@@ -125,54 +142,59 @@ You are an AI interviewer.
 
   function stopInterview() {
     setIsInterviewActive(false);
-    setQuestionCount(5); // force end
+    setQuestionCount(5);
     stopListening();
     speechSynthesis.cancel();
     setAiText("Interview ended. Thank you!");
   }
 
   return (
-     <><h1 className="text-6xl bg-blue-600 text-center text-yellow-500 font-bold  drop-shadow-lg">
-          🎤 AI Based Mock Interview
-        </h1>
-    <div className="relative flex flex-col items-center justify-center min-h-screen text-white p-6 overflow-hidden">
-      {/* Background */}
-      <div
-        className="absolute inset-0 bg-cover bg-center filter opacity-94 scale-105"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1727434032773-af3cd98375ba?w=1600&auto=format&fit=crop&q=80')",
-        }}
-      ></div>
+    <>
+      <h1 className="text-6xl bg-blue-600 text-center text-yellow-500 font-bold drop-shadow-lg">
+        🎤 AI Based Mock Interview
+      </h1>
+      <div className="relative flex flex-col items-center justify-center min-h-screen text-white p-6 overflow-hidden">
+        {/* Background */}
+        <div
+          className="absolute inset-0 bg-cover bg-center filter opacity-94 scale-105"
+          style={{
+            backgroundImage:
+              "url('https://images.unsplash.com/photo-1727434032773-af3cd98375ba?w=1600&auto=format&fit=crop&q=80')",
+          }}
+        ></div>
 
-      {/* Overlay */}
+        {/* Content */}
+        <div className="relative z-10 text-center max-w-lg">
+          <p className="mb-12 text-gray-200 font-bold text-3xl drop-shadow-lg">
+            Practice your interview skills with AI. Click below to start.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={startInterview}
+              className="h-30 w-30 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-full font-semibold shadow-lg transition duration-200"
+            >
+              Start Interview
+            </button>
+            <button
+              onClick={stopInterview}
+              className="h-30 w-30 px-6 py-3 bg-red-500 hover:bg-red-600 rounded-full font-semibold shadow-lg transition duration-200"
+            >
+              Stop
+            </button>
+          </div>
 
-      {/* Content */}
-     
-      <div className="relative z-10 text-center max-w-lg">
-        
-        <p className="mb-12 text-gray-200 font-bold text-3xl  drop-shadow-lg">
-          Practice your interview skills with AI. Click below to start.
-        </p>
-        <div className="flex gap-4 justify-center">
-          <button
-            onClick={startInterview}
-            className="h-30 w-30 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-full font-semibold shadow-lg transition duration-200"
-          >
-            Start Interview
-          </button>
-          <button
-            onClick={stopInterview}
-            className="h-30 w-30 px-6 py-3 bg-red-500 hover:bg-red-600 rounded-full font-semibold shadow-lg transition duration-200"
-          >
-            Stop
-          </button>
+          {userText && (
+            <p className="mt-4 text-yellow-400 bg-white">
+              🗣 You: {userText}
+            </p>
+          )}
+          {aiText && (
+            <p className="mt-4 text-green-400 bg-white">
+              🤖 AI: {aiText}
+            </p>
+          )}
         </div>
-
-        {userText && <p className="mt-4 text-yellow-400 bg-white">🗣 You: {userText}</p>}
-        {aiText && <p className="mt-4 text-green-400 bg-white">🤖 AI: {aiText}</p>}
       </div>
-    </div>
     </>
   );
 }
