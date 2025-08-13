@@ -1,18 +1,9 @@
 import { useState } from "react";
 import "./App.css";
 
-// Type for a conversation message
 interface Message {
   role: "user" | "model";
   text: string;
-}
-
-// Extend window for SpeechRecognition
-declare global {
-  interface Window {
-    webkitSpeechRecognition?: typeof SpeechRecognition;
-    SpeechRecognition?: typeof SpeechRecognition;
-  }
 }
 
 function App() {
@@ -28,9 +19,9 @@ function App() {
   let recognition: SpeechRecognition | undefined;
 
   if (typeof window !== "undefined") {
-    if ("webkitSpeechRecognition" in window && window.webkitSpeechRecognition) {
+    if (window.webkitSpeechRecognition) {
       recognition = new window.webkitSpeechRecognition();
-    } else if ("SpeechRecognition" in window && window.SpeechRecognition) {
+    } else if (window.SpeechRecognition) {
       recognition = new window.SpeechRecognition();
     }
 
@@ -45,9 +36,7 @@ function App() {
         sendToGemini(text);
       };
 
-      recognition.onend = () => {
-        // No auto restart — AI will decide when to listen again
-      };
+      recognition.onend = () => {};
     }
   }
 
@@ -55,9 +44,7 @@ function App() {
     if (recognition && !isProcessing && isInterviewActive) recognition.start();
   };
 
-  const stopListening = () => {
-    recognition?.stop();
-  };
+  const stopListening = () => recognition?.stop();
 
   function speak(text: string) {
     if (!isInterviewActive) return;
@@ -67,9 +54,7 @@ function App() {
     utterance.rate = 1;
     utterance.onend = () => {
       if (isInterviewActive && questionCount < 5) {
-        setTimeout(() => {
-          startListening();
-        }, 800);
+        setTimeout(() => startListening(), 800);
       }
     };
     speechSynthesis.speak(utterance);
@@ -115,12 +100,8 @@ You are an AI interviewer.
         data?.candidates?.[0]?.content?.parts?.[0]?.text ||
         "Sorry, I couldn't understand.";
 
-      setConversation([
-        ...updatedConversation,
-        { role: "model", text: aiReply },
-      ]);
+      setConversation([...updatedConversation, { role: "model", text: aiReply }]);
       setAiText(aiReply);
-
       setQuestionCount((prev) => prev + 1);
       speak(aiReply);
     } catch (err) {
@@ -134,8 +115,7 @@ You are an AI interviewer.
     setIsInterviewActive(true);
     setConversation([]);
     setQuestionCount(1);
-    const firstQuestion =
-      "Hello! Let's start the interview. Tell me about yourself.";
+    const firstQuestion = "Hello! Let's start the interview. Tell me about yourself.";
     setAiText(firstQuestion);
     speak(firstQuestion);
   }
@@ -154,7 +134,6 @@ You are an AI interviewer.
         🎤 AI Based Mock Interview
       </h1>
       <div className="relative flex flex-col items-center justify-center min-h-screen text-white p-6 overflow-hidden">
-        {/* Background */}
         <div
           className="absolute inset-0 bg-cover bg-center filter opacity-94 scale-105"
           style={{
@@ -162,8 +141,6 @@ You are an AI interviewer.
               "url('https://images.unsplash.com/photo-1727434032773-af3cd98375ba?w=1600&auto=format&fit=crop&q=80')",
           }}
         ></div>
-
-        {/* Content */}
         <div className="relative z-10 text-center max-w-lg">
           <p className="mb-12 text-gray-200 font-bold text-3xl drop-shadow-lg">
             Practice your interview skills with AI. Click below to start.
@@ -182,17 +159,8 @@ You are an AI interviewer.
               Stop
             </button>
           </div>
-
-          {userText && (
-            <p className="mt-4 text-yellow-400 bg-white">
-              🗣 You: {userText}
-            </p>
-          )}
-          {aiText && (
-            <p className="mt-4 text-green-400 bg-white">
-              🤖 AI: {aiText}
-            </p>
-          )}
+          {userText && <p className="mt-4 text-yellow-400 bg-white">🗣 You: {userText}</p>}
+          {aiText && <p className="mt-4 text-green-400 bg-white">🤖 AI: {aiText}</p>}
         </div>
       </div>
     </>

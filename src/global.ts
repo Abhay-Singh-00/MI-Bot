@@ -2,8 +2,8 @@ export {};
 
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition | undefined;
-    webkitSpeechRecognition: typeof SpeechRecognition | undefined;
+    webkitSpeechRecognition?: any;
+    SpeechRecognition?: any;
   }
 
   interface SpeechRecognition extends EventTarget {
